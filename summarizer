@@ -1,0 +1,84 @@
+import os
+import re
+import glob
+import json 
+import nltk
+import string
+import pymorphy2
+import pandas as pd  
+from nltk.corpus import stopwords 
+from nltk.tokenize import sent_tokenize, word_tokenize
+from sklearn.feature_extraction.text import CountVectorizer
+
+
+
+s_words = set(stopwords.words('russian'))
+s_words.update(['что', 'это', 'так', 'вот', 'быть', 'как', 'в', 'к', 'на','по','у'])
+morph = pymorphy2.MorphAnalyzer()
+
+class summarizer:
+    def __init__(self):
+        self.train = None
+        self.test = None
+        self.valid= None
+        self.sent = []
+        self.text =''
+        
+
+
+    def open_files(self):
+    	with open("gazeta_test.jsonl","rb") as f1:
+    		self.test=pd.read_json(f1, lines=True)
+    	with open("gazeta_train.jsonl","rb") as f2:
+    		self.train=pd.read_json(f2,lines=True)
+    	with open("gazeta_val.jsonl","rb") as f2:
+    		self.valid=pd.read_json(f2,lines=True)
+    	return (self.test,self.train,self.valid)
+
+    def __repr__(self):
+    	return (self.test.info(),self.train.info(),self.valid.info())
+
+
+    #def preprocess_text(self):
+    #	tokens = [w for sent in nltk.sent_tokenize(text) for w in nltk.word_tokenize(sent)]
+    #	tokens = [w for w in tokens if w not in s_words]
+    #	tokens = [w for w in tokens if w.isalpha() == True]
+    #	for word in tokens:
+    #		p = morph.parse(word)[0]
+    #		self.tokens.append(p.normal_form)
+    #	return tokens
+
+
+    def preprocess_text(self):
+    	''' Предобработка текста, возвращает список предложений'''
+    	self.text = self.text.lower()
+    	self.text = re.sub(r"\d+", "", self.text)
+    	self.text = re.sub(r'[^\w\s\\.]','', self.text) 
+    	sent = [sent.strip() for sent in nltk.sent_tokenize(self.text)]
+    	sent = [sentence.replace("\n","").replace(".","") for sentence in sent]
+    	return (sent)
+
+
+    def fit_clustering(self):
+    	'''Обучение модели '''
+    	#self.train["processed"] = self.train["text"].apply(lambda x: preprocess_text(x))
+    	#self.test["processed"] = self.test["text"].apply(lambda x: preprocess_text(x))
+    	#self.valid["processed"] = self.valid["text"].apply(lambda x: preprocess_text(x))
+    	train_texts = self.train['text']
+    	test_texts = self.test["text"]
+    	valid_texts = self.valid["text"]
+    	vec=CountVectorizer(max_df=0.8, max_features=10000, ngram_range=(1,3),tokenizer=self.preprocess_text())
+    	matrix = vec.fit_transform(train_texts)
+    	print(matrix)
+
+
+
+
+
+
+reader = summarizer()
+reader.open_files()
+#reader.__repr__()
+reader.fit_clustering()
+
+
