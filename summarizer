@@ -1,5 +1,6 @@
 import os
 import re
+import gc
 import glob
 import json 
 import nltk
@@ -17,23 +18,26 @@ s_words.update(['что', 'это', 'так', 'вот', 'быть', 'как', '�
 morph = pymorphy2.MorphAnalyzer()
 
 class summarizer:
-    def __init__(self):
+    def __init__(self,text=""):
         self.train = None
         self.test = None
         self.valid= None
         self.sent = []
-        self.text =''
+        self.text = text
         
 
 
     def open_files(self):
-    	with open("gazeta_test.jsonl","rb") as f1:
-    		self.test=pd.read_json(f1, lines=True)
     	with open("gazeta_train.jsonl","rb") as f2:
     		self.train=pd.read_json(f2,lines=True)
-    	with open("gazeta_val.jsonl","rb") as f2:
-    		self.valid=pd.read_json(f2,lines=True)
-    	return (self.test,self.train,self.valid)
+    		gc.collect()
+    	#with open("gazeta_test.jsonl","rb") as f1:
+    	#	self.test=pd.read_json(f1, lines=True)
+    		#with open("gazeta_train.jsonl","rb") as f2:
+    		#	self.train=pd.read_json(f2,lines=True)
+	    		#open("gazeta_val.jsonl","rb") as f3:
+    			#self.valid=pd.read_json(f3,lines=True)
+    	return (self.train)
 
     def __repr__(self):
     	return (self.test.info(),self.train.info(),self.valid.info())
@@ -48,28 +52,25 @@ class summarizer:
     #		self.tokens.append(p.normal_form)
     #	return tokens
 
+    
+    def preprocess_text(self,text):
 
-    def preprocess_text(self):
-    	''' Предобработка текста, возвращает список предложений'''
-    	self.text = self.text.lower()
-    	self.text = re.sub(r"\d+", "", self.text)
-    	self.text = re.sub(r'[^\w\s\\.]','', self.text) 
-    	sent = [sent.strip() for sent in nltk.sent_tokenize(self.text)]
-    	sent = [sentence.replace("\n","").replace(".","") for sentence in sent]
-    	return (sent)
+        ''' Предобработка текста, возвращает список предложений'''
+        text = text.lower()
+        text = re.sub(r"\d+", "", text)
+        text = re.sub(r'[^\w\s\\.]','', text) 
+        sent = [sent.strip() for sent in nltk.sent_tokenize(text)]
+        self.sent = [sentence.replace("\n","") for sentence in sent]
+        return (self.sent)
 
 
     def fit_clustering(self):
-    	'''Обучение модели '''
-    	#self.train["processed"] = self.train["text"].apply(lambda x: preprocess_text(x))
-    	#self.test["processed"] = self.test["text"].apply(lambda x: preprocess_text(x))
-    	#self.valid["processed"] = self.valid["text"].apply(lambda x: preprocess_text(x))
-    	train_texts = self.train['text']
-    	test_texts = self.test["text"]
-    	valid_texts = self.valid["text"]
-    	vec=CountVectorizer(max_df=0.8, max_features=10000, ngram_range=(1,3),tokenizer=self.preprocess_text())
-    	matrix = vec.fit_transform(train_texts)
-    	print(matrix)
+        '''Обучение модели '''
+        preprocess_text = self.preprocess_text
+        vec=CountVectorizer(tokenizer=lambda x: preprocess_text(x))
+        matrix = vec.fit_transform(self.train["text"])
+        vocab = vec.get_feature_names()
+    	#print(matrix)
 
 
 
@@ -79,6 +80,7 @@ class summarizer:
 reader = summarizer()
 reader.open_files()
 #reader.__repr__()
+#reader.preprocess_text()
 reader.fit_clustering()
 
 
