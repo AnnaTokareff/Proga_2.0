@@ -21,10 +21,11 @@ s_words.update(['что', 'это', 'так', 'вот', 'быть', 'как', '�
 morph = pymorphy2.MorphAnalyzer()
 
 class summarizer:
-    def __init__(self,text="",matrix=None):
+    def __init__(self,text="",matrix=None,model=None):
         self.train = None
         self.test = None
         self.valid= None
+        self.model = model
         self.sent = []
         self.text = text
         self.matrix = matrix
@@ -68,11 +69,10 @@ class summarizer:
         model = KMeans(3)
         model.fit(self.matrix)
         self.train['label']= model.predict(self.matrix)
-        #y_pred = model.predict(matrix)
-        #clusters = model.labels_.tolist()
+        val_matrix = vec.transform(self.valid["text"])
+        self.valid["label"] = model.predict(val_matrix)
         
         
-
     def elbow_method(self):
         '''Метод локтя для оптимального количества кластеров '''
         for k in range(2, 10):
