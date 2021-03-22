@@ -7,10 +7,13 @@ import nltk
 import string
 import pymorphy2
 import pandas as pd  
+import numpy as np
 from nltk.corpus import stopwords 
+from sklearn.cluster import DBSCAN, KMeans
 from nltk.tokenize import sent_tokenize, word_tokenize
-from sklearn.feature_extraction.text import CountVectorizer
-
+from sklearn.metrics import silhouette_score
+from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
+import matplotlib.pyplot as plt
 
 
 s_words = set(stopwords.words('russian'))
@@ -18,39 +21,29 @@ s_words.update(['что', 'это', 'так', 'вот', 'быть', 'как', '�
 morph = pymorphy2.MorphAnalyzer()
 
 class summarizer:
-    def __init__(self,text=""):
+    def __init__(self,text="",matrix=None):
         self.train = None
         self.test = None
         self.valid= None
         self.sent = []
         self.text = text
-        
+        self.matrix = matrix
+        self.elbow_data = {}
 
 
     def open_files(self):
     	with open("gazeta_train.jsonl","rb") as f2:
     		self.train=pd.read_json(f2,lines=True)
-    		gc.collect()
+    		#gc.collect()
     	#with open("gazeta_test.jsonl","rb") as f1:
-    	#	self.test=pd.read_json(f1, lines=True)
-    		#with open("gazeta_train.jsonl","rb") as f2:
-    		#	self.train=pd.read_json(f2,lines=True)
-	    		#open("gazeta_val.jsonl","rb") as f3:
-    			#self.valid=pd.read_json(f3,lines=True)
-    	return (self.train)
+    		#self.test=pd.read_json(f1, lines=True)
+    	with open("gazeta_train.jsonl","rb") as f3:
+    		self.valid=pd.read_json(f3,lines=True)
+	    		
+    	return ("Я открыл файлы")
 
     def __repr__(self):
     	return (self.test.info(),self.train.info(),self.valid.info())
-
-
-    #def preprocess_text(self):
-    #	tokens = [w for sent in nltk.sent_tokenize(text) for w in nltk.word_tokenize(sent)]
-    #	tokens = [w for w in tokens if w not in s_words]
-    #	tokens = [w for w in tokens if w.isalpha() == True]
-    #	for word in tokens:
-    #		p = morph.parse(word)[0]
-    #		self.tokens.append(p.normal_form)
-    #	return tokens
 
     
     def preprocess_text(self,text):
@@ -61,16 +54,47 @@ class summarizer:
         text = re.sub(r'[^\w\s\\.]','', text) 
         sent = [sent.strip() for sent in nltk.sent_tokenize(text)]
         self.sent = [sentence.replace("\n","") for sentence in sent]
+        print("Обработка")
         return (self.sent)
 
 
     def fit_clustering(self):
         '''Обучение модели '''
+        print("Я в функции fit_clustering")
         preprocess_text = self.preprocess_text
-        vec=CountVectorizer(tokenizer=lambda x: preprocess_text(x))
-        matrix = vec.fit_transform(self.train["text"])
-        vocab = vec.get_feature_names()
-    	#print(matrix)
+        vec= TfidfVectorizer(tokenizer=lambda x: preprocess_text(x))
+        self.matrix = vec.fit_transform(self.train["text"])
+        print("Векторизовал")
+        model = KMeans(3)
+        model.fit(self.matrix)
+        self.train['label']= model.predict(self.matrix)
+        #y_pred = model.predict(matrix)
+        #clusters = model.labels_.tolist()
+        
+        
+
+    def elbow_method(self):
+        '''Метод локтя для оптимального количества кластеров '''
+        for k in range(2, 10):
+            model = KMeans(n_clusters=k)
+            labels = model.fit_predict(self.matrix)
+            self.elbow_data[k] = np.sqrt(model.inertia_)
+        
+        plt.figure(figsize=(12,6))
+        plt.plot(list(self.elbow_data.keys()), list(self.elbow_data.values()), 'bx-')
+        plt.xlabel('Values of K')
+        plt.ylabel('Inertia')
+        plt.title('The Elbow Method using Inertia')
+        plt.show()
+
+    def  silhouette_coeff(self):
+        '''Метрика силуэт для оптимального количества кластеров'''
+        for k in range(2, 10):
+            kmeans = KMeans(n_clusters=k).fit(self.matrix)
+            label = kmeans.labels_
+            sil_coeff = silhouette_score(self.matrix, label, metric='euclidean')
+            print("For n_clusters={}, The Silhouette Coefficient is {}".format(k, sil_coeff))
+       
 
 
 
@@ -82,5 +106,5 @@ reader.open_files()
 #reader.__repr__()
 #reader.preprocess_text()
 reader.fit_clustering()
-
-
+#reader.silhouette_coeff()
+#reader.elbow_method()
