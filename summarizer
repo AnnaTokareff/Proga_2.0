@@ -21,10 +21,11 @@ s_words.update(['что', 'это', 'так', 'вот', 'быть', 'как', '�
 morph = pymorphy2.MorphAnalyzer()
 
 class summarizer:
-    def __init__(self,text="",matrix=None,model=None):
+    def __init__(self,text="",matrix=None,model=None,vec=None):
         self.train = None
         self.test = None
         self.valid= None
+        self.vec = vec
         self.model = model
         self.sent = []
         self.text = text
@@ -50,9 +51,10 @@ class summarizer:
     def preprocess_text(self,text):
 
         ''' Предобработка текста, возвращает список предложений'''
-        text = text.lower()
-        text = re.sub(r"\d+", "", text)
-        text = re.sub(r'[^\w\s\\.]','', text) 
+
+        #text = text.lower()
+        #text = re.sub(r"\d+", "", text)
+        text = re.sub(r'[^\w\s\d\\.]','', text) 
         sent = [sent.strip() for sent in nltk.sent_tokenize(text)]
         self.sent = [sentence.replace("\n","") for sentence in sent]
         print("Обработка")
@@ -64,13 +66,22 @@ class summarizer:
         print("Я в функции fit_clustering")
         preprocess_text = self.preprocess_text
         vec= TfidfVectorizer(tokenizer=lambda x: preprocess_text(x))
-        self.matrix = vec.fit_transform(self.train["text"])
+        self.matrix = vec.fit_transform(self.train["text"].values)
         print("Векторизовал")
-        model = KMeans(3)
+        model = KMeans(n_clusters=3,init="k-means++",random_state=42)
         model.fit(self.matrix)
-        self.train['label']= model.predict(self.matrix)
-        val_matrix = vec.transform(self.valid["text"])
-        self.valid["label"] = model.predict(val_matrix)
+        #self.train['label']= model.predict(self.matrix)
+        #val_matrix = vec.transform(self.valid["text"].values)
+        #self.valid["label"] = model.predict(val_matrix)
+        labels = model.labels_
+        cluster_centers=model.cluster_centers_
+        centroids = model.cluster_centers_.argsort()[:, ::-1]
+        close_words = vec.get_feature_names()
+        for i in range(3):
+            print("Cluster %d:" % i,end=""),
+            for ind in centroids[i, :10]:
+                print(' %s' % close_words[ind],end="")
+                print()
         
         
     def elbow_method(self):
@@ -94,7 +105,25 @@ class summarizer:
             label = kmeans.labels_
             sil_coeff = silhouette_score(self.matrix, label, metric='euclidean')
             print("For n_clusters={}, The Silhouette Coefficient is {}".format(k, sil_coeff))
-       
+    
+
+    def main(sef,text):
+        X = self.vec.fit_transform(result)
+        self.model.predict(X)
+        centroids = self.model.cluster_centers_.argsort()[:, ::-1]
+        close_words = self.vec.get_feature_names()
+        for i in range(true_k):
+            print("Cluster %d:" % i),
+        for ind in centroids[i, :10]:
+            print(' %s' % close_words[ind]),
+            
+
+    #if __name__ == "__main__":
+       # main()        
+
+
+
+
 
 
 
